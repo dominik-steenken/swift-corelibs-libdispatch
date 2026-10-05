@@ -452,7 +452,7 @@ _dispatch_transform_from_utf16(dispatch_data_t data, int32_t byteOrder)
 				if (range == NULL) {
 					return (bool)false;
 				}
-				ch = _dispatch_transform_swap_to_host((uint16_t)*(uint64_t*)p,
+				ch = _dispatch_transform_swap_to_host(*(uint16_t *)p,
 						byteOrder);
 				dispatch_release(range);
 				skip += 1;

@@ -138,7 +138,8 @@ set(DISPATCH_C_TESTS
     io_net
     io_pipe
     io_pipe_close
-    select)
+    select
+    transform)
 
 # Tests that usually pass, but occasionally fail.
 # Excluded by default for purposes of Swift CI

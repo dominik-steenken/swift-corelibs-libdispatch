@@ -864,11 +864,71 @@ main(void)
 
 #else
 
+/*
+ * Portable test: exercises the odd-sized UTF-16BE region path that was
+ * previously broken on big-endian platforms due to an erroneous uint64_t
+ * dereference of a 2-byte mapping (C-4 / transform.c line 455).
+ *
+ * No Security.framework required; plain libdispatch API only.
+ */
+
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <dispatch/dispatch.h>
+#include <dispatch/private.h>
+#include "dispatch_test.h"
+
+static void
+test_utf16_odd_size(void)
+{
+	/*
+	 * 3-byte payload: one complete UTF-16BE code unit (U+0041 'A', bytes
+	 * 0x00 0x41) followed by a lone trailing byte (0x00).  This forces the
+	 * "last byte of an odd sized range" branch in _dispatch_transform_from_utf16,
+	 * which is exactly the branch that held the buggy uint64_t dereference.
+	 *
+	 * Build the data as two separately-allocated chunks concatenated together
+	 * so that the mapping returned by _dispatch_data_subrange_map is backed by
+	 * exactly 2 bytes; accessing beyond those 2 bytes would fault or return
+	 * garbage.
+	 */
+	uint8_t first[2]  = { 0x00, 0x41 };   /* U+0041 'A' in UTF-16BE */
+	uint8_t second[1] = { 0x00 };          /* orphan trailing byte    */
+
+	dispatch_data_t d1 = dispatch_data_create(first,  sizeof(first),  NULL,
+	    DISPATCH_DATA_DESTRUCTOR_DEFAULT);
+	dispatch_data_t d2 = dispatch_data_create(second, sizeof(second), NULL,
+	    DISPATCH_DATA_DESTRUCTOR_DEFAULT);
+	dispatch_data_t d  = dispatch_data_create_concat(d1, d2);
+	dispatch_release(d1);
+	dispatch_release(d2);
+
+	/*
+	 * Transform with an explicit BE byte-order format.  The input is not valid
+	 * UTF-16 (a lone high-byte without a low-byte partner), so the transform
+	 * must return NULL.  What it must NOT do is crash or read past the 2-byte
+	 * mapping — that was the pre-fix behaviour on big-endian s390x.
+	 */
+	dispatch_data_t result = dispatch_data_create_with_transform(d,
+	    DISPATCH_DATA_FORMAT_TYPE_UTF16BE,
+	    DISPATCH_DATA_FORMAT_TYPE_UTF8);
+	test_ptr_null("utf16_odd_size: transform of odd-sized UTF-16BE must return NULL",
+	    result);
+
+	if (result) dispatch_release(result);
+	dispatch_release(d);
+}
+
 int
 main(void)
 {
-  test_skip("Dispatch data transforms test");
-  return 0;
+	test_start("Dispatch data transforms test");
+
+	test_utf16_odd_size();
+
+	test_stop();
+	return 0;
 }
 
 #endif
