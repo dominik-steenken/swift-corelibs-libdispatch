@@ -399,7 +399,7 @@ DISPATCH_EXPORT DISPATCH_NOTHROW void dispatch_atfork_child(void);
 #define DISPATCH_STRUCT_LE_3(a, b, c)     struct { c; b; a; }
 #define DISPATCH_STRUCT_LE_4(a, b, c, d)  struct { d; c; b; a; }
 #endif
-#if __has_feature(c_startic_assert)
+#if __has_feature(c_static_assert)
 #define DISPATCH_UNION_ASSERT(alias, st) \
 		_Static_assert(sizeof(struct { alias; }) == sizeof(st), "bogus union");
 #else
